@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nine days sooner, a quarter full: Korea's first Arctic container voyage in open data</title>
+<meta name="description" content="A case study of an animated globe of the PanStar Acro's round trip from Busan to Europe through the Northern Sea Route in 2026, built in Python from daily satellite sea ice data and a reconstructed route.">
+<style>
+/* Fonts are stored next to this page (docs/fonts), both under the SIL Open Font License */
+@font-face { font-family: "Archivo"; src: url("fonts/archivo-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Archivo"; src: url("fonts/archivo-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Source Serif 4"; src: url("fonts/source-serif-4-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Source Serif 4"; src: url("fonts/source-serif-4-latin-400-italic.woff2") format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Source Serif 4"; src: url("fonts/source-serif-4-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+
+:root {
+  --ink: #1d2433;        /* body text */
+  --muted: #5b6474;      /* captions and notes */
+  --track: #b9d3df;      /* the dashed sea route in the margin: ice blue */
+  --head: #9b2a1e;       /* headings: icebreaker red */
+  --arctic: #0e7490;     /* the Arctic route, a deep version of the globe's cyan */
+  --suez: #b45309;       /* the Suez ghost ship, a deep version of the globe's amber */
+  --paper: #ffffff;
+  --rule: #e3e8ec;
+  --sans: "Archivo", "Segoe UI", Helvetica, Arial, sans-serif;
+  --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--serif); font-size: 18px; line-height: 1.65; }
+a { color: var(--head); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { text-decoration-thickness: 2px; }
+a:focus-visible { outline: 3px solid var(--arctic); outline-offset: 2px; border-radius: 2px; }
+
+/* ---------- Opening ---------- */
+.opening { max-width: 1080px; margin: 0 auto; padding: 56px 24px 24px; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 48px; align-items: start; }
+.opening h1 { font-family: var(--sans); font-weight: 700; font-size: 3.2rem; line-height: 1.05; letter-spacing: -0.02em; margin: 0 0 20px; color: var(--head); }
+.standfirst { font-size: 1.25rem; line-height: 1.5; margin: 0 0 24px; max-width: 34em; }
+.byline { font-family: var(--sans); font-weight: 600; font-size: 0.95rem; color: var(--muted); margin: 0 0 16px; }
+.links { list-style: none; margin: 0; padding: 0; font-family: var(--sans); font-weight: 600; font-size: 0.95rem; }
+.links li { margin: 6px 0; }
+.lead { margin: 0; }
+.lead img { display: block; width: 100%; height: auto; border: 1px solid var(--rule); }
+figcaption { font-size: 0.85rem; line-height: 1.45; color: var(--muted); margin-top: 8px; font-style: italic; }
+
+/* ---------- The route: each section is a waypoint on a sea route ---------- */
+.line { max-width: 1080px; margin: 0 auto; padding: 8px 24px 64px; }
+.line-inner { position: relative; padding-left: 64px; max-width: 800px; margin-left: -64px; }   /* the route sits in the margin, so text lines up with the title */
+.line-inner::before { /* a dashed line, as a route is drawn on a chart */
+  content: ""; position: absolute; left: 15px; top: 18px; bottom: 30px; width: 4px; border-radius: 2px;
+  background: repeating-linear-gradient(to bottom, var(--track) 0 14px, transparent 14px 22px);
+}
+section { position: relative; margin-top: 48px; }
+h2 { font-family: var(--sans); font-weight: 700; font-size: 1.6rem; line-height: 1.2; color: var(--head); margin: 0 0 12px; }
+h2::before { /* each section is a waypoint: a diamond, as on a navigation chart */
+  content: ""; position: absolute; left: -58px; top: 4px; width: 22px; height: 22px; border-radius: 3px;
+  background: var(--paper); border: 4.5px solid var(--head); transform: rotate(45deg);
+}
+h3 { font-family: var(--sans); font-weight: 600; font-size: 1.15rem; line-height: 1.3; margin: 32px 0 6px; position: relative; color: var(--ink); }
+h3::before { /* a small filled waypoint for each finding */
+  content: ""; position: absolute; left: -53px; top: 4px; width: 12px; height: 12px; border-radius: 2px; background: var(--head); transform: rotate(45deg);
+}
+h3.arctic::before { background: var(--arctic); }
+h3.suez::before { background: var(--suez); }
+p { margin: 0 0 14px; max-width: 40em; }
+.figure-line { font-family: var(--sans); margin: 4px 0 10px; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.figure-line b { font-weight: 700; font-size: 2rem; line-height: 1; color: var(--head); }
+.figure-line.arctic b { color: var(--arctic); }
+.figure-line.suez b { color: var(--suez); }
+.figure-line span { font-weight: 600; font-size: 0.95rem; color: var(--muted); }
+ul.plain { margin: 0 0 14px; padding-left: 1.1em; max-width: 40em; }
+ul.plain li { margin: 6px 0; }
+.wide { margin: 18px 0 8px; }
+.wide img { display: block; width: 100%; height: auto; border: 1px solid var(--rule); }
+table { border-collapse: collapse; font-family: var(--sans); font-size: 0.92rem; margin: 8px 0 16px; }
+th, td { text-align: left; padding: 6px 18px 6px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); }
+td.num { text-align: right; font-variant-numeric: tabular-nums; padding-right: 0; padding-left: 18px; }
+td.num + td.num, th + th { padding-left: 18px; }
+td.num.arctic { color: var(--arctic); font-weight: 700; }
+.table-wrap { overflow-x: auto; max-width: 100%; }
+.terminus { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 0.9rem; color: var(--muted); }
+
+/* ---------- Narrow screens ---------- */
+@media (max-width: 900px) {
+  .opening { grid-template-columns: 1fr; gap: 28px; padding-top: 32px; }
+  .opening h1 { font-size: 2.4rem; }
+  .lead { max-width: 420px; }
+  .line-inner { margin-left: 0; }
+}
+@media (max-width: 560px) {
+  body { font-size: 17px; }
+  .opening, .line { padding-left: 16px; padding-right: 16px; }
+  .line-inner { padding-left: 36px; }
+  .line-inner::before { left: 7px; width: 3px; }
+  h2::before { left: -35px; width: 16px; height: 16px; border-width: 3.5px; top: 5px; }
+  h3::before { left: -32px; width: 9px; height: 9px; }
+  table { font-size: 0.85rem; }
+  th, td { padding-right: 10px; }
+}
+
+/* ---------- PDF and printing ---------- */
+@page { size: A4; margin: 16mm 15mm 16mm 15mm; }
+@media print {
+  body { font-size: 10pt; line-height: 1.45; }
+  a { color: var(--ink); text-decoration: none; }
+  .opening { grid-template-columns: minmax(0, 1fr) 70mm; gap: 8mm; padding: 0 0 4mm; max-width: none; }
+  .opening h1 { font-size: 26pt; }
+  .standfirst { font-size: 12.5pt; }
+  .web-link { display: none; }
+  .line { padding: 0; max-width: none; }
+  .line-inner { max-width: none; margin-left: 0; }
+  section { margin-top: 5.5mm; }
+  p, ul.plain li { orphans: 3; widows: 3; }
+  h2 { font-size: 15pt; break-after: avoid; }
+  h3 { font-size: 11.5pt; margin-top: 4mm; break-after: avoid; }
+  .figure-line b { font-size: 17pt; }
+  .wide { break-inside: avoid; }
+  .wide img { max-height: 72mm; width: auto; max-width: 100%; }
+  table { break-inside: avoid; font-size: 8.4pt; margin: 1mm 0 3mm; }
+  table.list { break-inside: auto; }
+  tr { break-inside: avoid; }
+  .figure-line { break-after: avoid; break-inside: avoid; }
+  th, td { padding: 1mm 4mm 1mm 0; }
+  td.num, td.num + td.num, th + th { padding-left: 5mm; }
+  .terminus { margin-top: 4mm; padding-top: 2mm; font-size: 8.5pt; }
+  .links a[href^="http"]::after { content: " (" attr(href) ")"; font-weight: 400; color: var(--muted); }
+}
+</style>
+</head>
+<body>
+
+<header class="opening">
+  <div>
+    <h1>Nine days sooner, a quarter full: Korea's first Arctic container voyage in open data</h1>
+    <p class="standfirst">In August 2026 the PanStar Acro sailed from Busan to Europe and back over the top of Russia. An animated globe replays its 50 days with the real sea ice of every day, built in Python from satellite data and a reconstructed route. How much did the Arctic shortcut save, how close did it come to the ice, and what did the ship carry?</p>
+    <p class="byline">Lik Ren Tai, October 2026</p>
+    <ul class="links">
+      <li><a href="https://likrentai.github.io/skarcticroute/">Open the map globe (also on phones)</a></li>
+      <li><a href="https://likrentai.github.io/skarcticroute/cesium.html">Open the 3D globe (desktop)</a></li>
+      <li><a href="https://github.com/likrentai/skarcticroute">Code, notebooks and data notes on GitHub</a></li>
+      <li class="web-link"><a href="case-study.pdf">Download this case study as a PDF</a></li>
+    </ul>
+  </div>
+  <figure class="lead">
+    <img src="images/cs_globe.jpg" width="800" height="465" alt="The 3D globe seen from above Siberia on 3 September 2026: the cyan route runs along the Russian Arctic coast from the Bering Strait past the Vilkitsky Strait and Cape Zhelaniya to Europe, with the white sea ice cap well to the north and the ship near the Vilkitsky Strait">
+    <figcaption>The 3D globe on 3 September 2026, day 12. The cyan route follows the Russian coast from the Bering Strait (right) to Europe (left); the white cap is that day's sea ice, as seen by the AMSR2 satellite.</figcaption>
+  </figure>
+</header>
+
+<main class="line">
+<div class="line-inner">
+
+<section>
+  <h2>The question</h2>
+  <p>Most container ships between East Asia and Europe go through the Suez Canal. The Northern Sea Route along Russia's Arctic coast is much shorter on the map, and as the summer ice shrinks it is open for a few weeks a year. In 2026 a South Korean ship, the PanStar Acro, made the first Korean commercial round trip to Europe that way: Busan, Felixstowe, Rotterdam, Gdansk and back, from 22 August to 11 October.</p>
+  <p>I wanted to see that voyage against the ice it sailed through, and to check the headline claims with open data: how much shorter and faster the route really was than Suez, how close the ship came to the ice, how the ice changed while it was up there, and whether the trip made sense as business. The answer is two linked globes that replay the voyage day by day, and the notebooks behind them.</p>
+</section>
+
+<section>
+  <h2>The data</h2>
+  <div class="table-wrap"><table class="list">
+    <tr><th>What</th><th>Source</th><th>Period</th></tr>
+    <tr><td>Voyage facts: dates, ports, distances, speed, cargo</td><td>Arctic Portal (citing Reuters and the Centre for High North Logistics); Container News; The Maritime Executive</td><td>Aug to Oct 2026</td></tr>
+    <tr><td>Daily sea ice concentration, 6.25 km grid, 51 daily files</td><td>University of Bremen, AMSR2 satellite (ASI algorithm)</td><td>22 Aug to 11 Oct 2026</td></tr>
+    <tr><td>The ship's route: waypoints, timing, a Suez route for comparison</td><td>Reconstructed in this project (notebook 00route)</td><td>the voyage</td></tr>
+    <tr><td>The 2026 Arctic minimum in the long record</td><td>NASA and the National Snow and Ice Data Center (NSIDC)</td><td>Sep 2026</td></tr>
+    <tr><td>Globe imagery</td><td>NASA GIBS (Blue Marble); Bing Maps via Cesium ion</td><td>background only</td></tr>
+  </table></div>
+  <p>The ship's real position track (AIS) is not openly available, so the route is drawn from waypoints along the usual corridor, through the Bering Strait and round Cape Zhelaniya, at one steady speed with 1.5 days in each European port. It matches the reported distances to within 2.1%. Every figure about distance to the ice is therefore about this reconstructed track, not the ship's real one.</p>
+</section>
+
+<section>
+  <h2>Two globes, one voyage</h2>
+  <div class="table-wrap"><table class="list">
+    <tr><th>Page</th><th>What it shows</th></tr>
+    <tr><td>Map globe (MapLibre and deck.gl)</td><td>The voyage day by day with a "ghost" ship on the Suez route, the day's ice in three shades, and the voyage in numbers. Works on phones.</td></tr>
+    <tr><td>3D globe (CesiumJS)</td><td>The same voyage in 3D on aerial imagery, with a 3D model of the ship, a camera that follows it, and views of the Arctic and the Bering Strait. Desktop only.</td></tr>
+    <tr><td>Notebooks (Python)</td><td>00route builds and checks the route; 01seaice downloads the ice, draws it and measures the ship against it.</td></tr>
+  </table></div>
+  <figure class="wide">
+    <img src="images/cs_pages.jpg" width="1612" height="600" alt="Left: the map globe on day 21, with the voyage panel and the amber Suez ghost ship still in the Suez Canal while the Arctic ship is in Felixstowe. Right: the 3D globe following the ship past the Vilkitsky Strait on 4 September, with sea ice to the north and grey pixels of ice along the coast">
+    <figcaption>Left: the map globe on 12 September, day 21. The ship is in Felixstowe; the same ship via Suez (amber) is still in the canal. Right: the 3D globe following the ship past the Vilkitsky Strait on 4 September; note the blocky grey "ice" along the coast.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>What the data shows</h2>
+
+  <h3 class="arctic">The shortcut is real: about nine and a half days to Europe</h3>
+  <div class="figure-line arctic"><b>Day 21 vs day 30.6</b><span>arrival in Felixstowe through the Arctic and via Suez, at the same steady 14.7 knots</span></div>
+  <p>By the reported planning distances, Busan to Felixstowe was 7,577 nautical miles through the Arctic against 10,877 via Suez (30% shorter), and Gdansk to Busan 7,660 against 11,788 (35% shorter). On the reconstructed route the ship reaches Felixstowe on day 21.1, which matches the real arrival on 12 September; via Suez it would arrive on day 30.6. Over the two ocean legs the Arctic saved about 7,400 nautical miles, roughly three weeks of sailing. Even so, the whole round trip took 50 days, against the 45 the Korean ministry had aimed for.</p>
+
+  <h3>The main ice pack stayed well away from the route</h3>
+  <div class="figure-line"><b>146 km</b><span>the closest the main pack came to our track, in the Laptev Sea on 3 September (eastbound: 235 km)</span></div>
+  <p>For each day in the Northern Sea Route, the notebook takes the ship's noon position on our track and measures the distance to the ice of that day. The satellite shows 0% ice under the ship on every day of both passages. The nearest "main pack" (at least 50% ice, away from the coast) was on most days 230 to 450 km to the north. The closest single ice cells, 10 to 19 km away at the Vilkitsky Strait, are thin fringes along the coast and partly false ice (see the data problems below).</p>
+  <figure class="wide">
+    <img src="images/cs_ice.png" width="1872" height="803" alt="Two charts. Left: distance from the track to the main ice pack at noon on each day of the Northern Sea Route, by sea area from the Kara Sea to the Chukchi Sea, westbound and eastbound; the pack is 146 to 690 km away, while single coastal ice cells come within 10 to 19 km at the Vilkitsky Strait. Right: Arctic sea ice extent each day from 22 August to 11 October, falling to 4.38 million square kilometres on 8 September and rising to 6.02 million by 11 October, with the westbound and eastbound passages shaded">
+    <figcaption>Left: how far the ice was from our track each day in the Northern Sea Route (filled: main pack; open: nearest cell with any ice). Right: Arctic sea ice extent over the voyage, with the two passages shaded.</figcaption>
+  </figure>
+
+  <h3 class="suez">The satellite saw open water; the crew still met ice</h3>
+  <div class="figure-line suez"><b>0% vs one night stopped</b><span>ice under our track every day, against drifting ice that halted the ship near Wrangel Island</span></div>
+  <p>Press reports describe drifting ice that blocked the ship near Wrangel Island in the Chukchi Sea and forced an overnight stop, and evasive turns around harder ice near the Vilkitsky Strait. Neither shows in the daily maps. A 6.25 km cell with a few scattered floes reads below the 15% cut-off, ice drifts within a day, and the real ship may have sailed north of our track. Daily concentration maps are good for seeing the corridor and the season; they are not a picture of what the bridge sees.</p>
+
+  <h3 class="arctic">The window was closing on the way home</h3>
+  <div class="figure-line arctic"><b>+15%</b><span>more Arctic sea ice during the eastbound passage (5.22 million km²) than the westbound one (4.52 million km²)</span></div>
+  <p>The ship went west just before the summer minimum, which the Bremen data puts at 4.38 million km² on 8 September, and came back east as the freeze began. By its return to Busan on 11 October the ice had grown to 6.02 million km², 37% more than at the minimum. The summer was not exceptional: NASA and NSIDC put the 2026 minimum at 4.6 million km² on 12 September, tied for the 10th lowest in the satellite record. The route was open in an ordinary recent summer, not only in a record one, but the window is weeks long.</p>
+
+  <h3>A quarter full going, empty coming back</h3>
+  <div class="figure-line"><b>27%</b><span>of the ship's 2,758 TEU capacity filled with export cargo: 737 TEU, against a hoped-for 1,300</span></div>
+  <p>On the way back the ship carried 1,743 TEU of empty containers and no import cargo, because the planned shipments could not be secured. The time saving is real, but a container service lives on cargo in both directions, and the route adds costs for ice navigation and insurance and the question of sanctions along Russia's coast. South Korea is considering regular sailings by 2030 and will use the trial's data to judge them.</p>
+  <div class="table-wrap"><table>
+    <tr><th>Leg</th><th style="text-align:right">Arctic (nm)</th><th style="text-align:right">Suez (nm)</th><th style="text-align:right">Shorter</th><th style="text-align:right">Cargo carried</th></tr>
+    <tr><td>Busan to Felixstowe</td><td class="num">7,577</td><td class="num">10,877</td><td class="num arctic">30%</td><td class="num">737 TEU</td></tr>
+    <tr><td>Gdansk to Busan</td><td class="num">7,660</td><td class="num">11,788</td><td class="num arctic">35%</td><td class="num">1,743 TEU empty</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>Problems in the data, and how they were handled</h2>
+  <ul class="plain">
+    <li><b>No real track.</b> The ship's AIS positions are not open, so the route is reconstructed and checked against every published distance (within 0.4% to 2.1%). Both globes say so on screen, and all ship-to-ice figures refer to this track.</li>
+    <li><b>Sources that disagree.</b> Arctic Portal gives about 6 days in the Arctic each way; another report has the ship entering the Arctic on 31 August and clearing its western side on 9 September. The reports also name Gdansk and nearby Gdynia for the Polish call. The project follows Arctic Portal and keeps the others as a check; the Felixstowe arrival on day 21 agrees in all of them.</li>
+    <li><b>False ice along the coasts.</b> A satellite microwave footprint near a shore mixes land with sea, so cells next to the coast can show 15% to 50% "ice" in open water. Every ice cell within 60 km of the ship on its closest days lay within 18 km of land. The main finding therefore uses the distance to ice at least 50% concentrated and at least 25 km from any coast.</li>
+    <li><b>Two different minimums.</b> The Bremen data gives 4.38 million km² on 8 September; NSIDC gives 4.6 million km² on 12 September. They use different grids, satellites and averaging (NSIDC a five-day mean), so each is compared only within its own series.</li>
+    <li><b>Noisy single days.</b> On 23 August the extent jumps by 0.38 million km² and falls back the next day. Days like this are kept as published, not smoothed, and no finding rests on a single day.</li>
+    <li><b>The pole and the date line.</b> The satellite cannot see the last 100 km round the pole, filled here as ice; the globes cannot draw shapes above about 85 N or across the 180 degree meridian without help, so the ice is cut and capped with care, and checked visually on real graphics cards.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Limits</h2>
+  <p>The route is reconstructed with one steady speed and fixed port stays, so it is right in distance and dates but not in the detail of where and how fast the ship sailed in the ice. The ice is a daily snapshot of concentration only, not thickness, type or the floes a ship meets, and it is compared with the ship at noon. This is one voyage in one season, and the project has no data on fuel, emissions, freight rates or insurance, so it cannot say whether the route paid. The voyage figures come from news reports, not the operator's own records.</p>
+</section>
+
+<section>
+  <h2>Where this could be useful</h2>
+  <ul class="plain">
+    <li><b>Shipping and logistics planners:</b> how wide the season window is, how fast it closes in autumn, and what a reliable schedule would have to allow for.</li>
+    <li><b>Trade and port analysts:</b> the time saved against the cargo imbalance, which matters more than the distance for a regular service.</li>
+    <li><b>Climate communication and teaching:</b> a single, concrete story that links the shrinking summer ice to trade routes, with the uncertainty shown honestly.</li>
+  </ul>
+  <p>The same approach, a reconstructed route checked against published figures and replayed against daily open satellite data, works for any voyage or route where the real track is not public.</p>
+</section>
+
+<section>
+  <h2>About</h2>
+  <p>Lik Ren Tai applies data science in two fields: environmental science and railway systems. This is the fourth project in the series, after <a href="https://likrentai.github.io/klmobility/case-study.html">a case study of rail use in the Klang Valley</a>, <a href="https://likrentai.github.io/klreach/case-study.html">Klang Valley Reach and Risk</a> and <a href="https://likrentai.github.io/seoulsubway/case-study.html">a KPI dashboard of the Seoul subway</a>, and the first built around satellite data and 3D. Built with Python (rasterio, shapely, pandas), MapLibre GL JS, deck.gl and CesiumJS.</p>
+  <p class="terminus">Voyage facts: Arctic Portal, 23 October 2026, citing Reuters and the Centre for High North Logistics; Container News; The Maritime Executive. Sea ice: AMSR2 ASI sea ice concentration, University of Bremen (Spreen, Kaleschke and Heygster 2008; Melsheimer and Spreen 2019, PANGAEA, CC BY 4.0). 2026 minimum: NASA and NSIDC. Imagery: NASA GIBS; Bing Maps via Cesium ion. This is an independent project, not affiliated with or endorsed by PanStar, the Korean Ministry of Oceans and Fisheries or any of the sources.</p>
+</section>
+
+</div>
+</main>
+</body>
+</html>
