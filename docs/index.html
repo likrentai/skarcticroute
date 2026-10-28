@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Over the Top</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/deck.gl@9.4.0/dist.min.js"></script>
+<style>
+  :root {
+    --space: #050a14;
+    --panel: rgba(10, 20, 40, 0.82);
+    --line: rgba(120, 170, 220, 0.25);
+    --text: #e6eef8;
+    --muted: #8ea3bd;
+    --arctic: #22d3ee;
+    --suez: #f5a524;
+  }
+  html, body { margin: 0; height: 100%; background: var(--space); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #map { position: absolute; inset: 0; }
+  .panel { position: absolute; left: 16px; top: 16px; width: 300px; padding: 16px 18px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    backdrop-filter: blur(6px); }
+  h1 { font-size: 18px; margin: 0 0 4px; letter-spacing: 0.02em; }
+  .sub { font-size: 12px; color: var(--muted); margin: 0 0 14px; line-height: 1.4; }
+  .day { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .date { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; }
+  .sw { width: 22px; height: 4px; border-radius: 2px; }
+  .sw.ice { display: inline-flex; width: 22px; height: 10px; border-radius: 2px; overflow: hidden; }
+  .sw.ice i { flex: 1; }
+  .sw.ice i:nth-child(1) { background: rgba(200, 225, 245, 0.45); }
+  .sw.ice i:nth-child(2) { background: rgba(220, 238, 250, 0.7); }
+  .sw.ice i:nth-child(3) { background: rgba(245, 250, 255, 0.95); }
+  .status { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ctrl { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+  button { background: #12305a; color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+  input[type=range] { flex: 1; accent-color: var(--arctic); }
+  .lbl { font-size: 12px; color: #e6eef8; text-shadow: 0 0 3px #050a14, 0 0 3px #050a14; white-space: nowrap; pointer-events: none; }
+  .lbl.minor { font-size: 11px; color: #8ea3bd; }
+  .lbl.gate { font-size: 11px; color: var(--arctic); }
+  .maplibregl-ctrl-attrib { background: rgba(5, 10, 20, 0.7) !important; color: var(--muted); }
+  .maplibregl-ctrl-attrib a { color: var(--muted) !important; }
+  .maplibregl-ctrl-attrib-button { filter: invert(1); }
+  .note { font-size: 11px; color: var(--muted); margin-top: 12px; line-height: 1.4; }
+  .note a { color: var(--muted); }
+  details.facts { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+  details.facts summary { font-size: 12px; color: var(--muted); cursor: pointer; letter-spacing: 0.04em; text-transform: uppercase; }
+  .fig { display: flex; gap: 10px; align-items: baseline; margin-top: 10px; }
+  .fig b { font-size: 20px; font-variant-numeric: tabular-nums; min-width: 112px; white-space: nowrap; }
+  .fig span { font-size: 12px; color: var(--muted); line-height: 1.35; }
+  .bar { position: relative; height: 8px; border-radius: 4px; background: rgba(120, 170, 220, 0.18); margin: 6px 0 2px 122px; }
+  .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--arctic); }
+  .bar u { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text); }
+  .caption { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); max-width: 520px; width: calc(100% - 700px);
+    min-width: 320px; padding: 12px 16px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--arctic);
+    border-radius: 10px; font-size: 15px; line-height: 1.45; opacity: 0; transition: opacity 0.4s; pointer-events: none; }
+  .caption.on { opacity: 1; }
+  .caption.suez { border-left-color: var(--suez); }
+  @media (max-width: 600px) {
+    .panel { left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; padding: 12px; max-height: 60vh; overflow-y: auto; }
+    .caption { left: 8px; right: 8px; top: 40px; bottom: auto; transform: none; width: auto; min-width: 0; max-width: none; font-size: 14px; }
+    .sub { display: none; }
+    .day { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="panel">
+  <h1>Over the Top</h1>
+  <p class="sub">PanStar Acro, Busan to Europe and back through the Northern Sea Route, 22 Aug to 11 Oct 2026.</p>
+  <div class="day" id="day">Day 0</div>
+  <div class="date" id="date">22 Aug 2026</div>
+  <div class="row"><span class="sw" style="background:var(--arctic)"></span>Arctic route<span class="status" id="sA"></span></div>
+  <div class="row"><span class="sw" style="background:var(--suez)"></span>Same ship via Suez<span class="status" id="sS"></span></div>
+  <div class="row" id="iceRow" style="display:none"><span class="sw ice"><i></i><i></i><i></i></span>Sea ice<span class="status" id="sI"></span></div>
+  <div class="ctrl">
+    <button id="play">Pause</button>
+    <input id="slider" type="range" min="0" max="50" step="0.05" value="0">
+  </div>
+  <details class="facts" id="facts">
+    <summary>The voyage in numbers</summary>
+    <div class="fig"><b id="fSaved"></b><span id="fSavedTxt"></span></div>
+    <div class="fig"><b id="fNsr"></b><span id="fNsrTxt"></span></div>
+    <div class="fig"><b id="fCargo"></b><span id="fCargoTxt"></span></div>
+    <div class="bar" id="fBar"><i id="fBarFill"></i><u id="fBarHope"></u></div>
+    <div class="fig"><b id="fEmpty"></b><span id="fEmptyTxt"></span></div>
+    <div class="fig" id="fIceRow" style="display:none"><b id="fIce"></b><span id="fIceTxt"></span></div>
+  </details>
+  <div class="note">Reconstructed route: drawn by hand and timed from the published dates and distances, not the ship's real track. The Suez ship sails westbound only, at the same speed.
+    Facts: <a id="srcLink" target="_blank"></a>.<span id="iceNote"></span></div>
+</div>
+<div class="caption" id="caption"></div>
+<script>
+// ---------- Section 0: settings ----------
+const SETTINGS = {
+  basemap: "bluemarble",        // <- "bluemarble" (NASA GIBS imagery) or "vector" (land outline, needs data/land.geojson)
+  daysPerSecond: 0.5,           // <- animation speed
+  trailDays: 5,                 // <- length of the glowing trail, in days
+  trailPieces: 24,              // <- how many steps the trail fades in (more = smoother)
+  nsrAlpha: 150,                // <- VISUAL: how strongly the Northern Sea Route part of the track stands out (0 to 255)
+  arcticColor: [34, 211, 238],  // <- VISUAL: cyan
+  suezColor: [245, 165, 36],    // <- VISUAL: amber
+  oceanColor: "#0b1f3a",        // <- VISUAL
+  landColor: "#1e3a4c",         // <- VISUAL
+  camera: { center: [85, 57], zoom: 1.5, pitch: 0, bearing: 0 },  // <- start view
+  phoneCamera: { center: [85, 57], zoom: 0.75 },                  // <- start view on phones (narrower than 600 px)
+  phonePanelSpace: 320,                                            // <- VISUAL: pixels kept free for the panel on phones
+  portLabelOffset: [10, -10],                                      // <- VISUAL: port names, pixels right and down from the dot
+  placeLabelOffset: [10, 6],                                       // <- VISUAL: other place names
+  labelOffsets: { "Rotterdam": [10, 6], "Felixstowe": [-78, -10], "Skagen": [-48, -20], "Cape Zhelaniya": [-40, 12] }, // <- VISUAL: names that need their own position
+  showIce: true,                                                   // <- draw the daily sea ice (needs data/seaice.json from 01seaice)
+  iceColors: ["rgba(200, 225, 245, 0.35)", "rgba(220, 238, 250, 0.6)", "rgba(245, 250, 255, 0.85)"], // <- VISUAL: at least 15, 50, 80 percent
+  poleCapColors: [[200, 225, 245, 89], [216, 236, 249, 189], [242, 248, 254, 245]],                     // <- VISUAL: the disc over the pole (equal to the ice shades stacked)
+  poleCapOverlap: 0.05,                                            // <- VISUAL: degrees the disc reaches past the ice edge (less shows a gap, more a bright ring)
+  captionDays: 2.2,                                                // <- how many voyage days each caption stays on screen
+  // <- Caption texts. Words in {braces} are filled in from the data:
+  // {vessel} {cargoOut} {hoped} {capacity} {empties} {daysSaved} {pctShorter} {nsrDays} {distance} {arcticDay} {suezDay}
+  captions: {
+    start: "{vessel} leaves Busan New Port with {cargoOut} TEU of cargo, little more than a quarter of its {capacity} TEU capacity.",
+    nsrIn1: "Through the Bering Strait into the Northern Sea Route, along Russia's Arctic coast.",
+    nsrOut1: "Out of the Arctic at Cape Zhelaniya after about {nsrDays} days. The Suez ship is still in the Indian Ocean.",
+    arriveFelixstowe: "Felixstowe on day {arcticDay}. The same ship via Suez would need about {daysSaved} more days: {pctShorter}% shorter.",
+    arriveRotterdam: "Rotterdam, the second European call.",
+    arriveGdansk: "Gdansk, the last call before the long way home.",
+    departGdansk: "Home through the Arctic again, carrying {empties} TEU of empty containers.",
+    nsrIn2: "Back into the Northern Sea Route, heading east.",
+    nsrOut2: "Through the Bering Strait and out of the Arctic.",
+    home: "Back in Busan on 11 October: 50 days and {distance} nautical miles.",
+    suez: "The Suez ship reaches Felixstowe only now, on day {suezDay}.",
+  },
+};
+// -----------------------------------------
+
+const MS_DAY = 86400000;
+const DEPART = Date.UTC(2026, 7, 22);
+const fmt = d => new Date(DEPART + d * MS_DAY).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+
+const sources = {};
+const layers = [
+  { id: "bg", type: "background", paint: { "background-color": SETTINGS.oceanColor } },
+];
+if (SETTINGS.basemap === "bluemarble") {
+  sources.bm = { type: "raster", tileSize: 256, maxzoom: 8,
+    tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg"],
+    attribution: '<a href="https://www.earthdata.nasa.gov/gibs" target="_blank">Imagery: NASA Blue Marble via GIBS</a>' };
+  layers.push({ id: "bm", type: "raster", source: "bm" });
+} else {
+  sources.land = { type: "geojson", data: "data/land.geojson" };
+  layers.push({ id: "land", type: "fill", source: "land", paint: { "fill-color": SETTINGS.landColor } });
+}
+
+const map = new maplibregl.Map({
+  container: "map",
+  style: { version: 8, projection: { type: "globe" }, sources, layers,
+    sky: { "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 5, 1, 7, 0] } },
+  ...SETTINGS.camera,
+  ...(window.innerWidth < 600 ? SETTINGS.phoneCamera : {}),
+  attributionControl: false,
+});
+const isPhone = window.innerWidth < 600;
+map.addControl(new maplibregl.AttributionControl({ compact: isPhone }), isPhone ? "top-right" : "bottom-right");
+if (isPhone) map.setPadding({ top: 0, bottom: SETTINGS.phonePanelSpace, left: 0, right: 0 });
+
+const ALT = 30000;  // lift lines above the globe surface (metres)
+let data, ice = null, iceDay = -1, nsr = [], t = 0, playing = true, last = null;
+
+function posAt(track, day) {
+  const T = track.t;
+  if (day <= T[0]) return track.path[0];
+  if (day >= T[T.length - 1]) return track.path[T.length - 1];
+  let lo = 0, hi = T.length - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; (T[m] <= day ? lo = m : hi = m); }
+  const f = (day - T[lo]) / Math.max(1e-9, T[hi] - T[lo]);
+  const a = track.path[lo], b = track.path[hi];
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, ALT];
+}
+
+const overlay = new deck.MapboxOverlay({ interleaved: true, layers: [] });
+
+function render() {
+  const A = data.arctic, S = data.suez;
+  const sEnd = S.t[S.t.length - 1];
+  const ships = [
+    { p: posAt(A, t), c: SETTINGS.arcticColor },
+  ];
+  if (t <= sEnd + 3) ships.push({ p: posAt(S, Math.min(t, sEnd)), c: SETTINGS.suezColor });
+  overlay.setProps({ layers: [
+    new deck.PathLayer({ id: "planA", data: [A], getPath: d => d.path, getColor: [...SETTINGS.arcticColor, 60], widthMinPixels: 1.2 }),
+    new deck.ScatterplotLayer({ id: "polecap", data: poleCap(), getPosition: d => d.p, getFillColor: d => d.c,
+      radiusUnits: "meters", getRadius: (90 - (ice ? ice.pole_cut_lat : 85) + SETTINGS.poleCapOverlap) * 111320, stroked: false }),
+    new deck.PathLayer({ id: "nsr", data: nsr, getPath: d => d.path, getColor: [...SETTINGS.arcticColor, SETTINGS.nsrAlpha], widthMinPixels: 2.5 }),
+    new deck.PathLayer({ id: "planS", data: [S], getPath: d => d.path, getColor: [...SETTINGS.suezColor, 50], widthMinPixels: 1.2 }),
+    new deck.PathLayer({ id: "trailS", data: trailPieces(S, Math.min(t, sEnd), SETTINGS.suezColor), getPath: d => d.path,
+      getColor: d => d.c, widthMinPixels: 4, capRounded: true, jointRounded: true }),
+    new deck.PathLayer({ id: "trailA", data: trailPieces(A, t, SETTINGS.arcticColor), getPath: d => d.path,
+      getColor: d => d.c, widthMinPixels: 4, capRounded: true, jointRounded: true }),
+    new deck.ScatterplotLayer({ id: "glow", data: ships, getPosition: d => d.p, getFillColor: d => [...d.c, 70],
+      radiusUnits: "pixels", getRadius: 14, billboard: true }),
+    new deck.ScatterplotLayer({ id: "ship", data: ships, getPosition: d => [d.p[0], d.p[1], ALT + 20000], billboard: true, getFillColor: [255, 255, 255],
+      getLineColor: d => d.c, stroked: true, lineWidthMinPixels: 2, radiusUnits: "pixels", getRadius: 5 }),
+    new deck.ScatterplotLayer({ id: "ports", data: data.ports, getPosition: d => [d.lon, d.lat, ALT],
+      getFillColor: [230, 238, 248], radiusUnits: "pixels", getRadius: 3 }),
+  ] });
+  document.getElementById("day").textContent = "Day " + Math.floor(t);
+  document.getElementById("date").textContent = fmt(t);
+  document.getElementById("slider").value = t;
+  document.getElementById("sA").textContent = arcticStatus(t);
+  document.getElementById("sS").textContent = t < sEnd ? "at sea" : "Felixstowe, day " + sEnd.toFixed(1);
+  updateCaption(t);
+  if (ice) updateIce(t);
+}
+
+function arcticStatus(day) {
+  let s = "at sea";
+  let inNSR = false;
+  for (const e of data.events) {
+    if (e.day > day) break;
+    if (e.kind === "gate") {
+      inNSR = !inNSR;
+      s = inNSR ? "in the Northern Sea Route" : "at sea";
+    } else if (e.kind === "arrive") {
+      s = e.name === "Busan" ? "home in Busan" : "in " + e.name;
+    } else {
+      s = "at sea";
+    }
+  }
+  return s;
+}
+
+function trailPieces(track, day, color) {
+  // The last trailDays of the track, ending exactly at the ship, cut into short pieces that fade with age.
+  // (deck.gl's TripsLayer drifted out of step with the ship on this globe, so the trail is built here.)
+  const T = track.t;
+  const start = Math.max(T[0], day - SETTINGS.trailDays);
+  if (day <= T[0]) return [];
+  const pts = [];
+  pts.push({ p: posAt(track, start), t: start });
+  for (let i = 0; i < T.length; i++) {
+    if (T[i] > start && T[i] < day) pts.push({ p: track.path[i], t: T[i] });
+  }
+  pts.push({ p: posAt(track, day), t: day });
+  const n = SETTINGS.trailPieces;
+  const pieces = [];
+  for (let k = 0; k < n; k++) {
+    const t0 = start + (day - start) * k / n;
+    const t1 = start + (day - start) * (k + 1) / n;
+    const path = [posAt(track, t0)];
+    for (const q of pts) if (q.t > t0 && q.t < t1) path.push(q.p);
+    path.push(posAt(track, t1));
+    const age = (day - t1) / SETTINGS.trailDays;
+    pieces.push({ path: path.map(p => [p[0], p[1], ALT + 10000]), c: [...color, Math.round(255 * (1 - age))] });
+  }
+  return pieces;
+}
+
+function nsrPaths() {
+  // the parts of the Arctic track between each pair of gate events
+  const A = data.arctic;
+  const out = [];
+  for (const p of data.passages) {
+    const path = [];
+    for (let i = 0; i < A.t.length; i++) {
+      if (A.t[i] >= p.enter_day && A.t[i] <= p.leave_day) path.push(A.path[i]);
+    }
+    out.push({ path });
+  }
+  return out;
+}
+
+const num = v => Number(v).toLocaleString("en-GB");
+let words = {}, captionList = [];
+
+function buildStory() {
+  const f = data.facts;
+  const saved = data.felixstowe_day.suez - data.felixstowe_day.arctic;
+  const nsrDays = data.passages.reduce((a, p) => a + p.days, 0) / data.passages.length;
+  words = {
+    vessel: f.vessel, cargoOut: num(f.cargo_out_teu), hoped: num(f.cargo_hoped_teu), capacity: num(f.capacity_teu),
+    empties: num(f.empties_back_teu), daysSaved: saved.toFixed(1), distance: num(f.distance_nm),
+    pctShorter: Math.round((1 - data.felixstowe_day.arctic / data.felixstowe_day.suez) * 100),
+    nsrDays: nsrDays.toFixed(1), arcticDay: Math.round(data.felixstowe_day.arctic), suezDay: Math.round(data.felixstowe_day.suez),
+  };
+  // which caption goes with which moment
+  captionList = [{ key: "start", day: 0 }];
+  let gates = 0;
+  for (const e of data.events) {
+    if (e.kind === "gate") {
+      gates += 1;
+      captionList.push({ key: (gates % 2 ? "nsrIn" : "nsrOut") + Math.ceil(gates / 2), day: e.day });
+    } else if (e.kind === "arrive") {
+      captionList.push({ key: e.name === "Busan" ? "home" : "arrive" + e.name, day: e.name === "Busan" ? e.day - SETTINGS.captionDays : e.day });
+    } else if (e.kind === "depart" && e.name === "Gdansk") {
+      captionList.push({ key: "departGdansk", day: e.day });
+    }
+  }
+  captionList.push({ key: "suez", day: data.felixstowe_day.suez, suez: true });
+  captionList.sort((a, b) => a.day - b.day);
+
+  // the numbers in the panel
+  document.getElementById("fSaved").textContent = words.daysSaved + " days";
+  document.getElementById("fSavedTxt").textContent = "sooner in Felixstowe than via Suez (" + words.pctShorter + "% shorter, our route)";
+  document.getElementById("fNsr").textContent = words.nsrDays + " days";
+  document.getElementById("fNsrTxt").textContent = "in the Northern Sea Route each way (reported: about 6)";
+  document.getElementById("fCargo").textContent = words.cargoOut + " TEU";
+  document.getElementById("fCargoTxt").textContent = "cargo out, of " + words.capacity + " TEU capacity; " + f.operator + " hoped for " + words.hoped;
+  document.getElementById("fBarFill").style.width = (100 * f.cargo_out_teu / f.capacity_teu) + "%";
+  document.getElementById("fBarHope").style.left = (100 * f.cargo_hoped_teu / f.capacity_teu) + "%";
+  document.getElementById("fEmpty").textContent = words.empties + " TEU";
+  document.getElementById("fEmptyTxt").textContent = "of empty containers on the way home";
+  const a = document.getElementById("srcLink");
+  a.textContent = f.source;
+  a.href = f.source_url;
+}
+
+function fill(text) {
+  return text.replace(/\{(\w+)\}/g, (m, k) => (k in words ? words[k] : m));
+}
+
+let shownCaption = null;
+function updateCaption(day) {
+  let pick = null;
+  for (const c of captionList) {
+    if (c.day <= day && day < c.day + SETTINGS.captionDays && SETTINGS.captions[c.key]) pick = c;
+  }
+  const el = document.getElementById("caption");
+  if (pick !== shownCaption) {
+    shownCaption = pick;
+    if (pick) {
+      el.textContent = fill(SETTINGS.captions[pick.key]);
+      el.classList.toggle("suez", !!pick.suez);
+      el.classList.add("on");
+    } else {
+      el.classList.remove("on");
+    }
+  }
+}
+
+function addIce() {
+  // the ice goes under the route and the ships: MapLibre draws these first, deck.gl on top
+  map.addSource("ice", { type: "geojson", data: ice.ice });
+  SETTINGS.iceColors.forEach((c, b) => map.addLayer({ id: "ice" + b, type: "fill", source: "ice",
+    filter: ["all", ["==", ["get", "d"], -1], ["==", ["get", "b"], b]], paint: { "fill-color": c, "fill-antialias": false } }));  // no soft edge: two soft edges meeting at 180 deg drew a bright line
+  ice.byDay = {};
+  for (const d of ice.days) ice.byDay[d.day] = d;
+  document.getElementById("iceRow").style.display = "";
+  document.getElementById("fIceRow").style.display = "";
+  document.getElementById("iceNote").innerHTML = ' Sea ice: AMSR2 satellite, <a href="' + ice.source_url + '" target="_blank">University of Bremen</a> (Spreen et al. 2008).';
+}
+
+function updateIce(day) {
+  const k = Math.max(0, Math.min(data.total_days, Math.floor(day)));
+  if (k === iceDay) return;
+  iceDay = k;
+  for (let b = 0; b < SETTINGS.iceColors.length; b++) map.setFilter("ice" + b, ["all", ["==", ["get", "d"], k], ["==", ["get", "b"], b]]);
+  const d = ice.byDay[k];
+  const status = document.getElementById("sI");
+  if (!d) {
+    status.textContent = "no data";
+    document.getElementById("fIce").textContent = "";
+    document.getElementById("fIceTxt").textContent = "no sea ice data for this day";
+    return;
+  }
+  status.textContent = d.ship_to_ice_km === null ? "" : num(d.ship_to_ice_km) + " km from the ship";
+  document.getElementById("fIce").textContent = (d.extent_km2 / 1e6).toFixed(2) + " M km²";
+  document.getElementById("fIceTxt").textContent = "Arctic sea ice extent on " + fmt(k) + " (at least " + ice.ice_min + "% ice)";
+}
+
+function poleCap() {
+  if (!ice) return [];
+  const d = ice.byDay[iceDay];
+  if (!d || d.cap_level < 0) return [];
+  return [{ p: [0, 89.999, 2000], c: SETTINGS.poleCapColors[d.cap_level] }];  // not exactly 90: the pole itself breaks on some graphics cards
+}
+
+function tick(now) {
+  if (last !== null && playing) {
+    t += (now - last) / 1000 * SETTINGS.daysPerSecond;
+    if (t > data.total_days) t = 0;
+  }
+  last = now;
+  render();
+  requestAnimationFrame(tick);
+}
+
+document.getElementById("play").onclick = e => { playing = !playing; e.target.textContent = playing ? "Pause" : "Play"; };
+document.getElementById("slider").oninput = e => { t = +e.target.value; };
+
+map.on("load", async () => {
+  data = await (await fetch("data/route.json")).json();
+  document.getElementById("slider").max = data.total_days;
+  for (const k of ["arctic", "suez"]) data[k].path = data[k].path.map(p => [p[0], p[1], ALT]);
+  nsr = nsrPaths();
+  if (SETTINGS.showIce) {
+    try {
+      const r = await fetch("data/seaice.json");
+      if (r.ok) ice = await r.json();
+    } catch (e) { ice = null; }
+  }
+  if (ice) addIce();
+  buildStory();
+  if (!isPhone) document.getElementById("facts").open = true;
+  map.addControl(overlay);
+  for (const [list, cls] of [[data.ports, "lbl"], [data.labels, "lbl minor"]]) {
+    for (const d of list) {
+      const el = document.createElement("div");
+      el.className = d.gate ? "lbl gate" : cls;
+      const inner = document.createElement("span");
+      inner.textContent = d.name;
+      const off = SETTINGS.labelOffsets[d.name] || (cls === "lbl" ? SETTINGS.portLabelOffset : SETTINGS.placeLabelOffset);
+      inner.style.display = "inline-block";
+      inner.style.transform = "translate(" + off[0] + "px, " + off[1] + "px)";
+      el.appendChild(inner);
+      new maplibregl.Marker({ element: el, anchor: "left" }).setLngLat([d.lon, d.lat]).addTo(map);
+    }
+  }
+  const q = new URLSearchParams(location.search);
+  if (q.has("t")) { t = +q.get("t"); playing = false; }
+  requestAnimationFrame(tick);
+  window.__ready = true;
+});
+</script>
+</body>
+</html>

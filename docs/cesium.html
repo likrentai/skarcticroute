@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Over the Top (3D)</title>
+<script>window.CESIUM_BASE_URL = "https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/";</script>
+<script src="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Cesium.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css">
+<style>
+  :root {
+    --space: #050a14;
+    --panel: rgba(10, 20, 40, 0.8);
+    --line: rgba(120, 170, 220, 0.25);
+    --text: #e6eef8;
+    --muted: #8ea3bd;
+    --arctic: #22d3ee;
+    --suez: #f5a524;
+  }
+  html, body, #globe { margin: 0; width: 100%; height: 100%; background: var(--space); overflow: hidden;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .panel { position: absolute; left: 16px; top: 16px; width: 290px; padding: 14px 16px; color: var(--text);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; backdrop-filter: blur(6px); }
+  h1 { font-size: 18px; margin: 0 0 4px; letter-spacing: 0.02em; }
+  .sub { font-size: 12px; color: var(--muted); margin: 0 0 10px; line-height: 1.4; }
+  .day { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .date { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 5px 0; font-size: 13px; }
+  .sw { width: 22px; height: 4px; border-radius: 2px; }
+  .sw.ice { height: 10px; background: linear-gradient(90deg, rgba(200, 225, 245, 0.45), rgba(245, 250, 255, 0.95)); }
+  .status { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  button { background: #12305a; color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+    padding: 6px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+  button.on { background: #1d4f8c; border-color: var(--arctic); }
+  .note { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.4; }
+  .note a { color: var(--muted); }
+  .caption { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); max-width: 560px; width: calc(100% - 700px);
+    min-width: 320px; padding: 12px 16px; color: var(--text); background: var(--panel); border: 1px solid var(--line);
+    border-left: 3px solid var(--arctic); border-radius: 10px; font-size: 15px; line-height: 1.45;
+    opacity: 0; transition: opacity 0.4s; pointer-events: none; }
+  .caption.on { opacity: 1; }
+  .caption.suez { border-left-color: var(--suez); }
+  .phone { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; flex-direction: column;
+    background: var(--space); color: var(--text); padding: 24px; text-align: center; font-size: 15px; line-height: 1.5; }
+  .phone a { color: var(--arctic); }
+  @media (max-width: 768px) { .phone { display: flex; } .panel, .caption { display: none; } }
+</style>
+</head>
+<body>
+<div id="globe"></div>
+<div class="panel">
+  <h1>Over the Top</h1>
+  <p class="sub">PanStar Acro, Busan to Europe and back through the Northern Sea Route, 22 Aug to 11 Oct 2026.</p>
+  <div class="day" id="day">Day 0</div>
+  <div class="date" id="date"></div>
+  <div class="row"><span class="sw" style="background:var(--arctic)"></span>Arctic route<span class="status" id="sA"></span></div>
+  <div class="row"><span class="sw" style="background:var(--suez)"></span>Same ship via Suez<span class="status" id="sS"></span></div>
+  <div class="row" id="iceRow" style="display:none"><span class="sw ice"></span>Sea ice<span class="status" id="sI"></span></div>
+  <div class="btns">
+    <button id="bOverview">Overview</button>
+    <button id="bArctic">The Arctic</button>
+    <button id="bBering">Bering Strait</button>
+    <button id="bFollow">Follow the ship</button>
+  </div>
+  <div class="note">Reconstructed route, not the ship's real track. Use the controls at the bottom to play, pause or jump to any date.
+    Facts: <a id="srcLink" target="_blank"></a>.<span id="iceNote"></span>
+    <br><a href="index.html">Map version with the numbers</a></div>
+</div>
+<div class="caption" id="caption"></div>
+<div class="phone">This 3D view is made for desktop screens.<br><a href="index.html">Open the map version</a></div>
+<script>
+// ---------- Section 0: settings ----------
+const SETTINGS = {
+  ionToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6ImFjZjR1NzFPeEZiU3oxZm4iLCJqdGkiOiJiMzMxNTg0OS1kNWJiLTQwMmQtYWFkNi04YWNjODU5ZWQ4MTkiLCJpZCI6NTM3MTk1LCJzdWIiOiJsaWtyZW50YWkiLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoic2thcmN0aWNyb3V0ZSIsImlhdCI6MTc5MzE5MTk1OX0.HOLLoMbdXFtOaju8AmqNGVifLScbqUPIBYKSYCGBrlg", // <- Cesium ion access token
+  imagery: "bing",               // <- "bing" or "sentinel" (Cesium ion, need the token), "bluemarble" (NASA, no account) or "naturalearth" (built in)
+  daysPerSecond: 0.5,           // <- animation speed (also adjustable with the dial at the bottom left)
+  trailDays: 5,                  // <- length of the glowing trail behind each ship, in days
+  icePreloadDays: 3,             // <- how many days of ice pictures to load ahead
+  arcticColor: "#22d3ee",        // <- VISUAL
+  suezColor: "#f5a524",          // <- VISUAL
+  // (the ice colours are set in 01seaice, which paints the daily images)
+  overview: { lon: 95, lat: 48, height: 15000000 },                  // <- start view: longitude, latitude, height in metres
+  arcticView: { lon: 100, lat: 58, height: 5500000, pitch: -65 },  // <- "The Arctic" view
+  beringView: { lon: -171, lat: 60.3, height: 700000, pitch: -50 },  // <- "Bering Strait" view
+  followFrom: [-350000, -600000, 420000],                           // <- VISUAL: camera offset when following the ship (metres east, north, up)
+  shipModel: "data/ship.glb",    // <- the ship's 3D model ("" for a plain dot)
+  shipMinPixels: 44,             // <- VISUAL: the model never gets smaller than this on screen
+  labelOffsets: { "Felixstowe": [-8, -6], "Cape Zhelaniya": [-8, 10] },  // <- VISUAL: names that need their own position (pixels right and down; negative = name to the left of the dot)
+  captionDays: 2.2,              // <- how many voyage days each caption stays on screen
+  // <- Caption texts, as on the map page. Words in {braces} are filled in from the data:
+  // {vessel} {cargoOut} {hoped} {capacity} {empties} {daysSaved} {pctShorter} {nsrDays} {distance} {arcticDay} {suezDay}
+  captions: {
+    start: "{vessel} leaves Busan New Port with {cargoOut} TEU of cargo, little more than a quarter of its {capacity} TEU capacity.",
+    nsrIn1: "Through the Bering Strait into the Northern Sea Route, along Russia's Arctic coast.",
+    nsrOut1: "Out of the Arctic at Cape Zhelaniya after about {nsrDays} days. The Suez ship is still in the Indian Ocean.",
+    arriveFelixstowe: "Felixstowe on day {arcticDay}. The same ship via Suez would need about {daysSaved} more days: {pctShorter}% shorter.",
+    arriveRotterdam: "Rotterdam, the second European call.",
+    arriveGdansk: "Gdansk, the last call before the long way home.",
+    departGdansk: "Home through the Arctic again, carrying {empties} TEU of empty containers.",
+    nsrIn2: "Back into the Northern Sea Route, heading east.",
+    nsrOut2: "Through the Bering Strait and out of the Arctic.",
+    home: "Back in Busan on 11 October: 50 days and {distance} nautical miles.",
+    suez: "The Suez ship reaches Felixstowe only now, on day {suezDay}.",
+  },
+};
+// -----------------------------------------
+
+const q = new URLSearchParams(location.search);
+const isPhone = window.innerWidth <= 768 && !q.has("desktop");  // ?desktop=1 in the address skips this check (for testing)
+if (!isPhone && window.innerWidth <= 768) document.querySelector(".phone").remove();
+const imagery = q.get("imagery") || SETTINGS.imagery;  // ?imagery=bluemarble etc. overrides the setting, handy for testing
+const DAY = 86400;
+const num = v => Number(v).toLocaleString("en-GB");
+const lon180 = x => ((x + 180) % 360 + 360) % 360 - 180;
+
+function blueMarble() {
+  return new Cesium.ImageryLayer(new Cesium.UrlTemplateImageryProvider({
+    url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg",
+    tilingScheme: new Cesium.WebMercatorTilingScheme(), maximumLevel: 8,
+    credit: new Cesium.Credit('<a href="https://www.earthdata.nasa.gov/gibs" target="_blank">Imagery: NASA Blue Marble via GIBS</a>') }));
+}
+
+function baseLayer() {
+  if ((imagery === "bing" || imagery === "sentinel") && SETTINGS.ionToken) {
+    Cesium.Ion.defaultAccessToken = SETTINGS.ionToken;
+    const layer = Cesium.ImageryLayer.fromProviderAsync(Cesium.IonImageryProvider.fromAssetId(imagery === "bing" ? 2 : 3954));
+    layer.errorEvent.addEventListener(() => {  // a wrong or restricted token: fall back to NASA imagery
+      console.warn("Cesium ion imagery failed to load; using NASA Blue Marble instead.");
+      viewer.imageryLayers.remove(layer);
+      viewer.imageryLayers.add(blueMarble(), 0);
+    });
+    return layer;
+  }
+  if (imagery === "naturalearth") {
+    return Cesium.ImageryLayer.fromProviderAsync(Cesium.TileMapServiceImageryProvider.fromUrl(Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII")));
+  }
+  return blueMarble();
+}
+
+let viewer = null;
+if (!isPhone) {
+  viewer = new Cesium.Viewer("globe", {
+    baseLayer: baseLayer(), baseLayerPicker: false, geocoder: false, homeButton: false, sceneModePicker: false,
+    navigationHelpButton: false, fullscreenButton: true, infoBox: false, selectionIndicator: false,
+    animation: true, timeline: true, shouldAnimate: !q.has("t"),
+    orderIndependentTranslucency: false,  // otherwise the see-through ice sheet is blended over the place names
+  });
+  viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#0b1f3a");
+  viewer.scene.globe.enableLighting = false;   // with days flying by, a moving day and night would only flicker
+  viewer.scene.skyAtmosphere.show = true;
+  viewer.scene.globe.showGroundAtmosphere = true;
+  start();
+}
+
+async function start() {
+  const data = await (await fetch("data/route.json")).json();
+  let ice = null;
+  try {
+    let r = await fetch("data/seaice_days.json");  // small: the daily numbers only (from 01seaice)
+    if (!r.ok) r = await fetch("data/seaice.json");  // fall back to the full file
+    if (r.ok) ice = await r.json();
+  } catch (e) { ice = null; }
+
+  // ---- the clock: day 0 is the departure date
+  const t0 = Cesium.JulianDate.fromIso8601(data.depart + "T00:00:00Z");
+  // addSeconds, not addDays: addDays with a fraction of a day makes dates that Cesium compares in the wrong order,
+  // which made the ship overshoot every bend and jump back
+  const at = day => Cesium.JulianDate.addSeconds(t0, day * DAY, new Cesium.JulianDate());
+  const tEnd = at(data.total_days);
+  const clock = viewer.clock;
+  clock.startTime = t0.clone();
+  clock.stopTime = tEnd.clone();
+  clock.currentTime = q.has("t") ? at(+q.get("t")) : t0.clone();
+  clock.clockRange = Cesium.ClockRange.LOOP_STOP;
+  clock.multiplier = SETTINGS.daysPerSecond * DAY;
+  viewer.timeline.zoomTo(t0, tEnd);
+  const dayOf = time => Cesium.JulianDate.secondsDifference(time, t0) / DAY;
+
+  // ---- routes and ships
+  const cyan = Cesium.Color.fromCssColorString(SETTINGS.arcticColor);
+  const amber = Cesium.Color.fromCssColorString(SETTINGS.suezColor);
+  const positions = (track, h, from = -Infinity, to = Infinity) => {
+    const out = [];
+    track.path.forEach((p, i) => { if (track.t[i] >= from && track.t[i] <= to) out.push(Cesium.Cartesian3.fromDegrees(lon180(p[0]), p[1], h)); });
+    return out;
+  };
+  viewer.entities.add({ polyline: { positions: positions(data.arctic, 1000), width: 1.5, material: cyan.withAlpha(0.3), arcType: Cesium.ArcType.NONE } });
+  viewer.entities.add({ polyline: { positions: positions(data.suez, 1000), width: 1.5, material: amber.withAlpha(0.3), arcType: Cesium.ArcType.NONE } });
+  for (const p of data.passages) {  // the Northern Sea Route stretches, brighter
+    viewer.entities.add({ polyline: { positions: positions(data.arctic, 1200, p.enter_day, p.leave_day), width: 2.5,
+      material: cyan.withAlpha(0.6), arcType: Cesium.ArcType.NONE } });
+  }
+  const sampled = track => {
+    const prop = new Cesium.SampledPositionProperty();
+    track.path.forEach((p, i) => prop.addSample(at(track.t[i]), Cesium.Cartesian3.fromDegrees(lon180(p[0]), p[1], 3000)));
+    return prop;
+  };
+  const suezEnd = data.suez.t[data.suez.t.length - 1];
+  const ship = (track, color, name, endDay, withModel) => {
+    const position = sampled(track);
+    const useModel = withModel && SETTINGS.shipModel;
+    return viewer.entities.add({
+    name,
+    availability: new Cesium.TimeIntervalCollection([new Cesium.TimeInterval({ start: t0, stop: at(endDay) })]),
+    position,
+    orientation: useModel ? new Cesium.VelocityOrientationProperty(position) : undefined,  // the bow points where the ship is going
+    model: useModel ? { uri: SETTINGS.shipModel, minimumPixelSize: SETTINGS.shipMinPixels, maximumScale: 4000 } : undefined,
+    point: { pixelSize: 10, color: Cesium.Color.WHITE, outlineColor: color, outlineWidth: 3, disableDepthTestDistance: 50000,
+      show: !useModel },
+    label: { text: name, font: "13px system-ui, sans-serif", fillColor: color, outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
+      style: Cesium.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new Cesium.Cartesian2(12, -12),
+      horizontalOrigin: Cesium.HorizontalOrigin.LEFT, disableDepthTestDistance: 50000 },
+  });
+  };
+  // The glowing trail behind each ship: the route's own points over the last trailDays, ending exactly at the ship.
+  // (Cesium's built-in path re-samples the ship once an hour and could drift off the route at bends.)
+  const pointAt = (track, day) => {
+    const T = track.t;
+    let lo = 0, hi = T.length - 1;
+    if (day <= T[0]) return track.path[0];
+    if (day >= T[hi]) return track.path[hi];
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (T[m] <= day) lo = m; else hi = m; }
+    const f = (day - T[lo]) / Math.max(1e-9, T[hi] - T[lo]);
+    const a = track.path[lo], b = track.path[hi];
+    return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+  };
+  const trail = (track, color, endDay) => {
+    const scratch = [];
+    viewer.entities.add({ polyline: {
+      positions: new Cesium.CallbackProperty(time => {
+        const day = Math.min(dayOf(time), endDay);
+        const start = Math.max(0, day - SETTINGS.trailDays);
+        scratch.length = 0;
+        if (day <= 0 || dayOf(time) > endDay + 0.5) return scratch;
+        const pts = [pointAt(track, start)];
+        for (let i = 0; i < track.t.length; i++) if (track.t[i] > start && track.t[i] < day) pts.push(track.path[i]);
+        pts.push(pointAt(track, day));
+        for (const p of pts) scratch.push(Cesium.Cartesian3.fromDegrees(lon180(p[0]), p[1], 3000));
+        return scratch;
+      }, false),
+      width: 6, arcType: Cesium.ArcType.NONE,
+      material: new Cesium.PolylineGlowMaterialProperty({ glowPower: 0.3, color }) } });
+  };
+  trail(data.suez, amber, suezEnd);
+  trail(data.arctic, cyan, data.total_days);
+  ship(data.suez, amber, "Via Suez", suezEnd, false);
+  const arcticShip = ship(data.arctic, cyan, data.facts ? data.facts.vessel : "PanStar Acro", data.total_days, true);
+
+  // ---- place names
+  // Cesium draws names on top of the globe, so a name on the far side would show through.
+  // The horizon check below hides any name the camera cannot see.
+  const horizon = new Cesium.EllipsoidalOccluder(Cesium.Ellipsoid.WGS84, viewer.camera.positionWC);
+  viewer.scene.preRender.addEventListener(() => { horizon.cameraPosition = viewer.camera.positionWC; });
+  const label = (d, color, size, below) => {
+    const off = SETTINGS.labelOffsets[d.name] || [8, below ? 10 : -6];
+    const pos = Cesium.Cartesian3.fromDegrees(d.lon, d.lat, 20000);  // well above the ice sheet
+    const inView = new Cesium.CallbackProperty(() => horizon.isPointVisible(pos), false);
+    return viewer.entities.add({
+      position: pos,
+      point: { pixelSize: size === 12 ? 5 : 0, color: Cesium.Color.WHITE, show: inView },
+      label: { text: d.name, font: size + "px system-ui, sans-serif", fillColor: color, outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new Cesium.Cartesian2(off[0], off[1]),
+        horizontalOrigin: off[0] < 0 ? Cesium.HorizontalOrigin.RIGHT : Cesium.HorizontalOrigin.LEFT,
+        verticalOrigin: off[1] > 0 ? Cesium.VerticalOrigin.TOP : Cesium.VerticalOrigin.BOTTOM,
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 2.2e7), show: inView },
+    });
+  };
+  for (const d of data.ports) label(d, Cesium.Color.WHITE, 12, false);
+  for (const d of data.labels) label(d, d.gate ? cyan : Cesium.Color.fromCssColorString("#b8c7d9"), 11, true);
+
+  // ---- sea ice: one transparent image per day (from 01seaice), painted on a single sheet over the Arctic.
+  // Changing the day only swaps the picture on the sheet, which is quick, so the animation does not stall.
+  let iceDay = -1;
+  const iceImages = {};
+  let iceMaterial = null;
+  if (ice) {
+    ice.byDay = {};
+    for (const d of ice.days) ice.byDay[d.day] = d;
+    const blank = document.createElement("canvas");
+    blank.width = blank.height = 1;
+    iceMaterial = new Cesium.Material({ fabric: {  // the picture, never wrapped at the top and bottom edges
+      uniforms: { image: blank, rows: 800.0 },
+      source: `czm_material czm_getMaterial(czm_materialInput materialInput) {
+        czm_material m = czm_getDefaultMaterial(materialInput);
+        vec2 st = materialInput.st;
+        st.t = clamp(st.t, 0.5 / rows, 1.0 - 0.5 / rows);
+        vec4 c = texture(image, st);
+        m.diffuse = c.rgb;
+        m.alpha = c.a;
+        return m;
+      }` } });
+    const r = ice.image_bounds;
+    viewer.scene.primitives.add(new Cesium.Primitive({
+      geometryInstances: new Cesium.GeometryInstance({ geometry: new Cesium.RectangleGeometry({
+        rectangle: Cesium.Rectangle.fromDegrees(r[0], r[1], r[2], r[3]), height: 100, granularity: Cesium.Math.toRadians(0.5),
+        vertexFormat: Cesium.EllipsoidSurfaceAppearance.VERTEX_FORMAT }) }),
+      appearance: new Cesium.EllipsoidSurfaceAppearance({ material: iceMaterial, aboveGround: true, translucent: true }),
+      asynchronous: false,
+    }));
+    ice.image = k => {  // the picture of day k, loaded and decoded once
+      if (iceImages[k]) return iceImages[k];
+      const d = ice.byDay[k];
+      return (iceImages[k] = new Promise(done => {
+        if (!d) return done(null);
+        const img = new Image();
+        img.onload = () => (img.decode ? img.decode().catch(() => {}) : Promise.resolve()).then(() => done(img));
+        img.onerror = () => done(null);
+        img.src = (ice.image_dir || "data/ice") + "/" + d.date.replaceAll("-", "") + ".png";
+      }));
+    };
+    document.getElementById("iceRow").style.display = "";
+    document.getElementById("iceNote").innerHTML = ' Sea ice: AMSR2 satellite, <a href="' + ice.source_url + '" target="_blank">University of Bremen</a> (Spreen et al. 2008).';
+  }
+
+  function updateIce(day) {
+    const k = Math.max(0, Math.min(data.total_days, Math.floor(day)));
+    if (k === iceDay) return;
+    iceDay = k;
+    ice.image(k).then(img => { if (img && iceDay === k) { iceMaterial.uniforms.rows = img.height; iceMaterial.uniforms.image = img; } });
+    for (let n = 1; n <= SETTINGS.icePreloadDays; n++) ice.image(Math.min(data.total_days, k + n));  // get the next days ready
+    for (const n of Object.keys(iceImages)) if (+n < k - 1 || +n > k + SETTINGS.icePreloadDays + 1) delete iceImages[n];  // forget the rest
+    const d = ice.byDay[k];
+    document.getElementById("sI").textContent = d && d.ship_to_ice_km !== null ? num(d.ship_to_ice_km) + " km from the ship" : "";
+  }
+
+  // ---- captions and status, as on the map page
+  const f = data.facts;
+  const saved = data.felixstowe_day.suez - data.felixstowe_day.arctic;
+  const words = {
+    vessel: f.vessel, cargoOut: num(f.cargo_out_teu), hoped: num(f.cargo_hoped_teu), capacity: num(f.capacity_teu),
+    empties: num(f.empties_back_teu), daysSaved: saved.toFixed(1), distance: num(f.distance_nm),
+    pctShorter: Math.round((1 - data.felixstowe_day.arctic / data.felixstowe_day.suez) * 100),
+    nsrDays: (data.passages.reduce((a, p) => a + p.days, 0) / data.passages.length).toFixed(1),
+    arcticDay: Math.round(data.felixstowe_day.arctic), suezDay: Math.round(data.felixstowe_day.suez),
+  };
+  const fill = text => text.replace(/\{(\w+)\}/g, (m, k) => (k in words ? words[k] : m));
+  const captionList = [{ key: "start", day: 0 }];
+  let gates = 0;
+  for (const e of data.events) {
+    if (e.kind === "gate") { gates += 1; captionList.push({ key: (gates % 2 ? "nsrIn" : "nsrOut") + Math.ceil(gates / 2), day: e.day }); }
+    else if (e.kind === "arrive") captionList.push({ key: e.name === "Busan" ? "home" : "arrive" + e.name, day: e.name === "Busan" ? e.day - SETTINGS.captionDays : e.day });
+    else if (e.kind === "depart" && e.name === "Gdansk") captionList.push({ key: "departGdansk", day: e.day });
+  }
+  captionList.push({ key: "suez", day: data.felixstowe_day.suez, suez: true });
+  const src = document.getElementById("srcLink");
+  src.textContent = f.source;
+  src.href = f.source_url;
+
+  function arcticStatus(day) {
+    let s = "at sea", inNSR = false;
+    for (const e of data.events) {
+      if (e.day > day) break;
+      if (e.kind === "gate") { inNSR = !inNSR; s = inNSR ? "in the Northern Sea Route" : "at sea"; }
+      else if (e.kind === "arrive") s = e.name === "Busan" ? "home in Busan" : "in " + e.name;
+      else s = "at sea";
+    }
+    return s;
+  }
+
+  let shownCaption = null;
+  const fmt = time => Cesium.JulianDate.toDate(time).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  viewer.clock.onTick.addEventListener(c => {
+    const day = dayOf(c.currentTime);
+    document.getElementById("day").textContent = "Day " + Math.floor(day);
+    document.getElementById("date").textContent = fmt(c.currentTime);
+    document.getElementById("sA").textContent = arcticStatus(day);
+    document.getElementById("sS").textContent = day < suezEnd ? "at sea" : "Felixstowe, day " + suezEnd.toFixed(1);
+    let pick = null;
+    for (const cap of captionList) if (cap.day <= day && day < cap.day + SETTINGS.captionDays && SETTINGS.captions[cap.key]) pick = cap;
+    if (pick !== shownCaption) {
+      shownCaption = pick;
+      const el = document.getElementById("caption");
+      if (pick) { el.textContent = fill(SETTINGS.captions[pick.key]); el.classList.toggle("suez", !!pick.suez); el.classList.add("on"); }
+      else el.classList.remove("on");
+    }
+    if (ice) updateIce(day);
+  });
+
+  // ---- camera
+  const buttons = { overview: "bOverview", arctic: "bArctic", bering: "bBering", follow: "bFollow" };
+  const mark = which => Object.entries(buttons).forEach(([k, id]) => document.getElementById(id).classList.toggle("on", k === which));
+  const fly = (v, which) => {
+    viewer.trackedEntity = undefined;
+    viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(v.lon, v.lat, v.height),
+      orientation: { heading: 0, pitch: Cesium.Math.toRadians(v.pitch || -90), roll: 0 }, duration: q.has("t") ? 0 : 2 });
+    mark(which);
+  };
+  const follow = () => {
+    arcticShip.viewFrom = new Cesium.Cartesian3(...SETTINGS.followFrom);
+    viewer.trackedEntity = arcticShip;
+    mark("follow");
+  };
+  document.getElementById("bOverview").onclick = () => fly(SETTINGS.overview, "overview");
+  document.getElementById("bArctic").onclick = () => fly(SETTINGS.arcticView, "arctic");
+  document.getElementById("bBering").onclick = () => fly(SETTINGS.beringView, "bering");
+  document.getElementById("bFollow").onclick = follow;
+  const view = q.get("view");
+  if (view === "follow") follow();
+  else if (view === "arctic") fly(SETTINGS.arcticView, "arctic");
+  else if (view === "bering") fly(SETTINGS.beringView, "bering");
+  else fly(SETTINGS.overview, "overview");
+  window.__ready = true;
+}
+</script>
+</body>
+</html>
