@@ -4,7 +4,7 @@ An animated globe of the **PanStar Acro**'s round trip from Busan to Europe and 
 
 - **Page A, data globe** (works on phones): https://likrentai.github.io/skarcticroute/
 - **Page B, 3D globe** (desktop only): https://likrentai.github.io/skarcticroute/cesium.html
-- **Case study**: coming soon
+- **Case study**: https://likrentai.github.io/skarcticroute/case-study.html (also as a [PDF](https://likrentai.github.io/skarcticroute/case-study.pdf))
 
 ## The voyage
 
