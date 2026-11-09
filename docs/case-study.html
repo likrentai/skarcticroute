@@ -6,12 +6,12 @@
 <title>Nine days sooner, a quarter full: Korea's first Arctic container voyage in open data</title>
 <meta name="description" content="A case study of an animated globe of the PanStar Acro's round trip from Busan to Europe through the Northern Sea Route in 2026, built in Python from daily satellite sea ice data and a reconstructed route.">
 <style>
-/* Fonts are stored next to this page (docs/fonts), both under the SIL Open Font License */
-@font-face { font-family: "Archivo"; src: url("fonts/archivo-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
-@font-face { font-family: "Archivo"; src: url("fonts/archivo-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
-@font-face { font-family: "Source Serif 4"; src: url("fonts/source-serif-4-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
-@font-face { font-family: "Source Serif 4"; src: url("fonts/source-serif-4-latin-400-italic.woff2") format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
-@font-face { font-family: "Source Serif 4"; src: url("fonts/source-serif-4-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+/* Fonts are stored next to this page (docs/fonts), both under the SIL Open Font License: Bricolage Grotesque and Newsreader */
+@font-face { font-family: "Bricolage Grotesque"; src: url("fonts/bricolage-grotesque-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Bricolage Grotesque"; src: url("fonts/bricolage-grotesque-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Newsreader"; src: url("fonts/newsreader-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Newsreader"; src: url("fonts/newsreader-latin-400-italic.woff2") format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Newsreader"; src: url("fonts/newsreader-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
 
 :root {
   --ink: #1d2433;        /* body text */
@@ -22,12 +22,12 @@
   --suez: #b45309;       /* the Suez ghost ship, a deep version of the globe's amber */
   --paper: #ffffff;
   --rule: #e3e8ec;
-  --sans: "Archivo", "Segoe UI", Helvetica, Arial, sans-serif;
-  --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --sans: "Bricolage Grotesque", "Segoe UI", Helvetica, Arial, sans-serif;
+  --serif: "Newsreader", Georgia, "Times New Roman", serif;
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--serif); font-size: 18px; line-height: 1.65; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--serif); font-size: 19px; line-height: 1.65; }
 a { color: var(--head); text-decoration-thickness: 1px; text-underline-offset: 3px; }
 a:hover { text-decoration-thickness: 2px; }
 a:focus-visible { outline: 3px solid var(--arctic); outline-offset: 2px; border-radius: 2px; }
@@ -121,6 +121,8 @@ td.num.arctic { color: var(--arctic); font-weight: 700; }
   table.list { break-inside: auto; }
   tr { break-inside: avoid; }
   .figure-line { break-after: avoid; break-inside: avoid; }
+  tr:first-child { break-after: avoid; }
+  .table-wrap { overflow: visible; }   /* a scrolling box cannot be split across pages */
   th, td { padding: 1mm 4mm 1mm 0; }
   td.num, td.num + td.num, th + th { padding-left: 5mm; }
   .terminus { margin-top: 4mm; padding-top: 2mm; font-size: 8.5pt; }
@@ -195,7 +197,7 @@ td.num.arctic { color: var(--arctic); font-weight: 700; }
   <div class="figure-line"><b>146 km</b><span>the closest the main pack came to our track, in the Laptev Sea on 3 September (eastbound: 235 km)</span></div>
   <p>For each day in the Northern Sea Route, the notebook takes the ship's noon position on our track and measures the distance to the ice of that day. The satellite shows 0% ice under the ship on every day of both passages. The nearest "main pack" (at least 50% ice, away from the coast) was on most days 230 to 450 km to the north. The closest single ice cells, 10 to 19 km away at the Vilkitsky Strait, are thin fringes along the coast and partly false ice (see the data problems below).</p>
   <figure class="wide">
-    <img src="images/cs_ice.png" width="1872" height="803" alt="Two charts. Left: distance from the track to the main ice pack at noon on each day of the Northern Sea Route, by sea area from the Kara Sea to the Chukchi Sea, westbound and eastbound; the pack is 146 to 690 km away, while single coastal ice cells come within 10 to 19 km at the Vilkitsky Strait. Right: Arctic sea ice extent each day from 22 August to 11 October, falling to 4.38 million square kilometres on 8 September and rising to 6.02 million by 11 October, with the westbound and eastbound passages shaded">
+    <img src="images/cs_ice.png" width="1884" height="809" alt="Two charts. Left: distance from the track to the main ice pack at noon on each day of the Northern Sea Route, by sea area from the Kara Sea to the Chukchi Sea, westbound and eastbound; the pack is 146 to 690 km away, while single coastal ice cells come within 10 to 19 km at the Vilkitsky Strait. Right: Arctic sea ice extent each day from 22 August to 11 October, falling to 4.38 million square kilometres on 8 September and rising to 6.02 million by 11 October, with the westbound and eastbound passages shaded">
     <figcaption>Left: how far the ice was from our track each day in the Northern Sea Route (filled: main pack; open: nearest cell with any ice). Right: Arctic sea ice extent over the voyage, with the two passages shaded.</figcaption>
   </figure>
 
@@ -246,7 +248,7 @@ td.num.arctic { color: var(--arctic); font-weight: 700; }
 
 <section>
   <h2>About</h2>
-  <p>Lik Ren Tai applies data science in two fields: environmental science and railway systems. This is the fourth project in the series, after <a href="https://likrentai.github.io/klmobility/case-study.html">a case study of rail use in the Klang Valley</a>, <a href="https://likrentai.github.io/klreach/case-study.html">Klang Valley Reach and Risk</a> and <a href="https://likrentai.github.io/seoulsubway/case-study.html">a KPI dashboard of the Seoul subway</a>, and the first built around satellite data and 3D. Built with Python (rasterio, shapely, pandas), MapLibre GL JS, deck.gl and CesiumJS.</p>
+  <p>Lik Ren Tai applies data science in two fields: environmental science and railway systems. This project was built with Python (rasterio, shapely, pandas, matplotlib), MapLibre GL JS, deck.gl and CesiumJS.</p>
   <p class="terminus">Voyage facts: Arctic Portal, 23 October 2026, citing Reuters and the Centre for High North Logistics; Container News; The Maritime Executive. Sea ice: AMSR2 ASI sea ice concentration, University of Bremen (Spreen, Kaleschke and Heygster 2008; Melsheimer and Spreen 2019, PANGAEA, CC BY 4.0). 2026 minimum: NASA and NSIDC. Imagery: NASA GIBS; Bing Maps via Cesium ion. This is an independent project, not affiliated with or endorsed by PanStar, the Korean Ministry of Oceans and Fisheries or any of the sources.</p>
 </section>
 
